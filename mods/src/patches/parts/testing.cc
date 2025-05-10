@@ -116,6 +116,16 @@ AppConfig* Model_LoadConfigs(auto original, Model* _this)
   return config;
 }
 
+bool FleetDeployedData_HasActiveStatusEffect(auto original, void* _this, int statusEffect)
+{
+  if (statusEffect == 10) {
+    return true;
+  }
+  if (statusEffect == 1) {
+    return false;
+  }
+  return original(_this, statusEffect);
+}
 void SetActive_hook(auto original, void* _this, bool active)
 {
   static auto IsActiveSelf = il2cpp_resolve_icall_typed<bool(void*)>("UnityEngine.GameObject::get_activeSelf()");
@@ -156,4 +166,21 @@ void InstallTestPatches()
       SPUD_STATIC_DETOUR(SetActive, SetActive_hook);
     }
   }
+     
+    auto fleet_deployed_data =
+      il2cpp_get_class_helper("Digit.Client.PrimeLib.Runtime", "Digit.PrimeServer.Models", "FleetDeployedData");
+  fleet_deployed_data = fleet_deployed_data;
+  auto p              = fleet_deployed_data.GetMethod("HasActiveStatusEffect");
+  SPUD_STATIC_DETOUR(p, FleetDeployedData_HasActiveStatusEffect);
+
+  auto queue_manager = il2cpp_get_class_helper("Assembly-CSharp", "Prime.ActionQueue", "ActionQueueManager");
+
+  auto is_queue_unlocked = queue_manager.GetMethod("IsQueueUnlocked");
+  spud::create_detour(is_queue_unlocked, [](auto original, void* _this) { return true; }).install().detach();
+
+  auto GetMaxQueueable = queue_manager.GetMethod("GetMaxQueueable");
+  spud::create_detour(GetMaxQueueable, [](auto original, void* _this) { return 20010808; }).install().detach();
+
+  auto IsQueueFull = queue_manager.GetMethod("IsQueueFull");
+  spud::create_detour(IsQueueFull, [](auto original, void* _this) { return false; }).install().detach();
 }
